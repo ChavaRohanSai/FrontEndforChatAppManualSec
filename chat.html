@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Messages | ChatApp</title>
+    <style>
+        :root { --primary: #2563eb; --bg: #f1f5f9; --border: #e2e8f0; }
+        body { font-family: 'Inter', sans-serif; margin: 0; display: flex; height: 100vh; background: var(--bg); overflow: hidden; }
+        
+        /* Sidebar */
+        #sidebar { width: 320px; background: white; border-right: 1px solid var(--border); display: flex; flex-direction: column; }
+        .sidebar-header { padding: 20px; border-bottom: 1px solid var(--border); }
+        .search-container { padding: 10px 20px; border-bottom: 1px solid var(--border); background: #fff; }
+        #userSearch { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; box-sizing: border-box; background: #f8fafc; }
+        
+        #users { list-style: none; padding: 0; margin: 0; overflow-y: auto; flex-grow: 1; }
+        #users li { padding: 15px 20px; cursor: pointer; border-bottom: 1px solid #f8fafc; transition: 0.2s; color: #334155; }
+        #users li:hover { background: #f8fafc; }
+        #users li.active { background: #eff6ff; border-left: 4px solid var(--primary); color: var(--primary); font-weight: 600; }
+
+        /* Chat Area */
+        #main-chat { flex-grow: 1; display: flex; flex-direction: column; background: white; }
+        #chat-header { padding: 18px 25px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: #fff; z-index: 10; }
+        #chatBox { flex-grow: 1; padding: 20px; overflow-y: auto; background: #f8fafc; display: flex; flex-direction: column; gap: 12px; }
+        
+        .msg { max-width: 70%; padding: 10px 16px; border-radius: 18px; font-size: 0.95rem; line-height: 1.5; word-wrap: break-word; }
+        .sent { background: var(--primary); color: white; align-self: flex-end; border-bottom-right-radius: 4px; }
+        .received { background: #e2e8f0; color: #1e293b; align-self: flex-start; border-bottom-left-radius: 4px; }
+
+        #input-area { padding: 20px; border-top: 1px solid var(--border); display: flex; gap: 12px; background: white; }
+        #messageInput { flex-grow: 1; padding: 12px; border: 1px solid var(--border); border-radius: 10px; outline: none; transition: 0.2s; }
+        #messageInput:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(37,99,235,0.1); }
+        #sendBtn { padding: 0 24px; background: var(--primary); color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: 600; }
+        .logout-btn { padding: 8px 16px; background: #fee2e2; color: #dc2626; border: none; border-radius: 8px; cursor: pointer; font-size: 0.85rem; font-weight: 600; }
+        .logout-btn:hover { background: #fecaca; }
+    </style>
+</head>
+<body>
+
+<div id="sidebar">
+    <div class="sidebar-header">
+        <div style="display:flex; justify-content: space-between; align-items: center;">
+            <h3 style="margin:0; color: #0f172a;">Messages</h3>
+            <button class="logout-btn" onclick="logout()">Logout</button>
+        </div>
+        <div id="myEmail" style="font-size: 0.85rem; color: #64748b; margin-top: 6px;"></div>
+    </div>
+    <div class="search-container">
+        <input type="text" id="userSearch" placeholder="Search contacts..." onkeyup="filterUsers()">
+    </div>
+    <ul id="users"></ul>
+</div>
+
+<div id="main-chat">
+    <div id="chat-header">
+        <span id="chatWithTitle" style="color: #334155; font-weight: 600;">Select a user</span>
+    </div>
+    <div id="chatBox"></div>
+    <div id="input-area">
+        <input id="messageInput" placeholder="Type a message..." onkeypress="if(event.key==='Enter') sendMessage()">
+        <button id="sendBtn" onclick="sendMessage()">Send</button>
+    </div>
+</div>
+
+<script>
+    // AUTH PROTECTION: Redirect to login if no session
+    let senderEmail = localStorage.getItem("email");
+    if(!senderEmail) {
+        window.location.href = "login.html";
+    } else {
+        document.getElementById("myEmail").innerText = "Logged in as: " + senderEmail;
+    }
+
+    let allUsers = []; 
+    let receiverEmail = "";
+
+    function loadUsers(){
+        fetch("http://localhost:8080/Home/GetAllUsers")
+        .then(res=>res.json())
+        .then(users=>{
+            // Don't show myself in the list
+            allUsers = users.filter(u => u !== senderEmail);
+            renderUserList(allUsers);
+        });
+    }
+
+    function renderUserList(listToRender) {
+        let list = document.getElementById("users");
+        list.innerHTML = "";
+        listToRender.forEach(u => {
+            let li = document.createElement("li");
+            li.textContent = u;
+            if(u === receiverEmail) li.classList.add('active');
+            li.onclick = () => {
+                receiverEmail = u;
+                document.querySelectorAll('#users li').forEach(el => el.classList.remove('active'));
+                li.classList.add('active');
+                document.getElementById("chatWithTitle").innerText = u;
+                loadMessages();
+            };
+            list.appendChild(li);
+        });
+    }
+
+    function filterUsers() {
+        let query = document.getElementById("userSearch").value.toLowerCase();
+        let filtered = allUsers.filter(u => u.toLowerCase().includes(query));
+        renderUserList(filtered);
+    }
+
+    function loadMessages(){
+        if(receiverEmail === "") return;
+        fetch(`http://localhost:8080/GetAllMessages?senderEmail=${senderEmail}&receiverEmail=${receiverEmail}`)
+        .then(res=>res.json())
+        .then(messages=>{
+            let chat = document.getElementById("chatBox");
+            chat.innerHTML = "";
+            messages.forEach(m => {
+                let div = document.createElement("div");
+                div.className = m.senderEmail === senderEmail ? "msg sent" : "msg received";
+                div.innerText = m.message;
+                chat.appendChild(div);
+            });
+            chat.scrollTop = chat.scrollHeight;
+        });
+    }
+
+    function sendMessage(){
+        let input = document.getElementById("messageInput");
+        let text = input.value.trim();
+        if(receiverEmail === "" || !text) return;
+
+        fetch("http://localhost:8080/chatting", {
+            method:"POST",
+            headers:{"Content-Type":"application/json"},
+            body:JSON.stringify({ senderEmail, receiverEmail, message: text })
+        }).then(() => {
+            input.value = "";
+            loadMessages();
+        });
+    }
+
+    function logout(){
+        localStorage.removeItem("email");
+        window.location.href = "login.html";
+    }
+
+    // Refresh chat every 2 seconds
+    setInterval(loadMessages, 2000);
+    loadUsers();
+</script>
+</body>
+</html>

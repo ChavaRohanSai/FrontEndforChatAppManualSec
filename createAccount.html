@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Create Account | ChatApp</title>
+    <style>
+        :root { --primary: #10b981; --bg: #f8fafc; --white: #ffffff; --border: #e2e8f0; }
+        body { font-family: 'Inter', sans-serif; background-color: var(--bg); margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        .card { background: var(--white); padding: 2.5rem; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); width: 100%; max-width: 380px; }
+        h2 { text-align: center; margin-top: 0; color: #0f172a; }
+        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid var(--border); border-radius: 8px; box-sizing: border-box; font-size: 1rem; }
+        button { width: 100%; padding: 12px; background-color: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; margin-top: 10px; transition: 0.2s; }
+        button:hover { background-color: #059669; }
+        .footer { text-align: center; margin-top: 1.5rem; font-size: 0.9rem; color: #64748b; }
+        a { color: var(--primary); text-decoration: none; font-weight: 600; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>Join ChatApp</h2>
+        <input id="email" type="email" placeholder="Email Address">
+        <input id="password" type="password" placeholder="Create Password">
+        <button onclick="createAccount()">Register Now</button>
+        <div class="footer">Already have an account? <a href="login.html">Login</a></div>
+    </div>
+
+    <script>
+        // Redirect if already logged in
+        if(localStorage.getItem("email")) {
+            window.location.href = "chat.html";
+        }
+
+        function createAccount(){
+            let email = document.getElementById("email").value;
+            let password = document.getElementById("password").value;
+
+            if(!email || !password) {
+                alert("Please fill in all fields");
+                return;
+            }
+
+            fetch("http://localhost:8080/Home/CreateAccount",{
+                method:"POST",
+                headers:{"Content-Type":"application/json"},
+                body:JSON.stringify({ email, password })
+            })
+            .then(()=>{
+                alert("Account created successfully!");
+                window.location.href="login.html";
+            });
+        }
+    </script>
+</body>
+</html>
